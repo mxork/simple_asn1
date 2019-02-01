@@ -194,7 +194,7 @@ impl PartialEq for ASN1Block {
 
 /// An ASN.1 OID.
 #[derive(Clone,Debug,PartialEq)]
-pub struct OID(Vec<BigUint>);
+pub struct OID(pub Vec<BigUint>);
 
 impl OID {
     /// Generate an ASN.1. The vector should be in the obvious format,
@@ -246,6 +246,7 @@ const PRINTABLE_CHARS: &'static str =
 #[derive(Clone,Debug,PartialEq)]
 pub enum ASN1DecodeErr {
     EmptyBuffer,
+    BufferUnderrun(usize, usize),
     BadBooleanLength(usize),
     LengthTooLarge(usize),
     UTF8DecodeFailure(Utf8Error),
@@ -258,6 +259,8 @@ impl fmt::Display for ASN1DecodeErr {
         match self {
             ASN1DecodeErr::EmptyBuffer =>
                 write!(f, "Encountered an empty buffer decoding ASN1 block."),
+            ASN1DecodeErr::BufferUnderrun(expected, actual) =>
+                write!(f, "Buffer too short: ASN1 block should extend to offset {}, but buffer is {} bytes long.", expected, actual),
             ASN1DecodeErr::BadBooleanLength(x) =>
                 write!(f, "Bad length field in boolean block: {}", x),
             ASN1DecodeErr::LengthTooLarge(x) =>
@@ -277,6 +280,8 @@ impl Error for ASN1DecodeErr {
         match self {
             ASN1DecodeErr::EmptyBuffer =>
                 "Encountered an empty buffer decoding ASN1 block.",
+            ASN1DecodeErr::BufferUnderrun(expected, actual) =>
+                "Buffer too short: ASN1 block extends past end of buffer.",
             ASN1DecodeErr::BadBooleanLength(_) =>
                 "Bad length field in boolean block.",
             ASN1DecodeErr::LengthTooLarge(_) =>
@@ -351,7 +356,7 @@ fn from_der_(i: &[u8], start_offset: usize)
         let soff = start_offset + index;
         let (tag, class) = decode_tag(i, &mut index);
         let len = decode_length(i, &mut index)?;
-        let body = &i[index .. (index + len)];
+        let body = i.get(index .. (index + len)).ok_or(ASN1DecodeErr::BufferUnderrun(index+len, len))?;
 
         match tag.to_u8() {
             // BOOLEAN
@@ -917,7 +922,7 @@ fn encode_len(x: usize) -> Vec<u8> {
 /// assuming they also have access to the underlying bytes making up the
 /// stream.
 pub trait FromASN1WithBody : Sized {
-    type Error : From<ASN1DecodeErr>;
+    type Error : From<ASN1DecodeErr> + Error;
 
     fn from_asn1_with_body<'a>(v: &'a[ASN1Block], _b: &[u8])
         -> Result<(Self,&'a[ASN1Block]),Self::Error>;
@@ -927,7 +932,7 @@ pub trait FromASN1WithBody : Sized {
 /// Any member of this trait is also automatically a member of
 /// `FromASN1WithBody`, as it can obviously just ignore the body.
 pub trait FromASN1 : Sized {
-    type Error : From<ASN1DecodeErr>;
+    type Error : From<ASN1DecodeErr> + Error;
 
     fn from_asn1(v: &[ASN1Block])
         -> Result<(Self,&[ASN1Block]),Self::Error>;
@@ -957,7 +962,7 @@ pub fn der_decode<T: FromASN1WithBody>(v: &[u8]) -> Result<T,T::Error>
 /// `ASN1Class::Universal` as the tag to use, which should be good for
 /// most people.
 pub trait ToASN1 {
-    type Error : From<ASN1EncodeErr>;
+    type Error : From<ASN1EncodeErr> + Error;
 
     fn to_asn1(&self) -> Result<Vec<ASN1Block>,Self::Error> {
         self.to_asn1_class(ASN1Class::Universal)
