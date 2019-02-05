@@ -193,7 +193,7 @@ impl PartialEq for ASN1Block {
 }
 
 /// An ASN.1 OID.
-#[derive(Clone,Debug,PartialEq)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub struct OID(pub Vec<BigUint>);
 
 impl OID {
