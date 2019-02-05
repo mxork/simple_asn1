@@ -216,8 +216,8 @@ impl PartialEq for ASN1Block {
 }
 
 /// An ASN.1 OID.
-#[derive(Clone,Debug,PartialEq)]
-pub struct OID(Vec<BigUint>);
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct OID(pub Vec<BigUint>);
 
 impl OID {
     /// Generate an ASN.1. The vector should be in the obvious format,
