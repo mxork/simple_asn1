@@ -1067,6 +1067,23 @@ impl<T: FromASN1> FromASN1WithBody for T {
     }
 }
 
+impl<T: FromASN1> FromASN1 for Vec<T> {
+    type Error = T::Error;
+
+    // this doesn't totally match the semantics of from_asn1,
+    // since it doesn't actually allow T::from_asn1 to consume more
+    // than a single block from the stream.
+    fn from_asn1(blocks: &[ASN1Block]) -> Result<(Vec<T>, &[ASN1Block]), Self::Error> {
+        let mut out: Vec<T> = Vec::new();
+        for chunk in blocks.chunks(1) {
+            let (res,_) = T::from_asn1(chunk)?;
+            out.push(res);
+        }
+
+        Ok((out, &[]))
+    }
+}
+
 /// Automatically decode a type via DER encoding, assuming that the type
 /// is a member of `FromASN1` or `FromASN1WithBody`.
 pub fn der_decode<T: FromASN1WithBody>(v: &[u8]) -> Result<T,T::Error>
