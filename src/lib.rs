@@ -965,6 +965,20 @@ impl<T: FromASN1> FromASN1 for Vec<T> {
     }
 }
 
+impl<T: ToASN1> ToASN1 for Vec<T> {
+    type Error = T::Error;
+
+    fn to_asn1_class(&self, class: ASN1Class) -> Result<Vec<ASN1Block>, Self::Error> {
+        let mut out = Vec::new();
+        for elem in self {
+            let res = elem.to_asn1_class(class)?;
+            out.extend(res);
+        }
+
+        Ok(out)
+    }
+}
+
 /// Automatically decode a type via DER encoding, assuming that the type
 /// is a member of `FromASN1` or `FromASN1WithBody`.
 pub fn der_decode<T: FromASN1WithBody>(v: &[u8]) -> Result<T,T::Error>
