@@ -399,6 +399,7 @@ fn from_der_(i: &[u8], start_offset: usize)
     while index < len {
         let soff = start_offset + index;
         let (tag, constructed, class) = decode_tag(i, &mut index)?;
+
         let len = decode_length(i, &mut index)?;
         let checklen = index.checked_add(len).ok_or(ASN1DecodeErr::LengthTooLarge(len))?;
         if checklen > i.len()  {
@@ -504,11 +505,15 @@ fn from_der_(i: &[u8], start_offset: usize)
             }
             // SEQUENCE
             Some(0x10) => {
-                match from_der_(body, start_offset + index) {
-                    Ok(items) =>
-                        result.push(ASN1Block::Sequence(soff, items)),
-                    Err(e) =>
-                        return Err(e)
+                if len == 0 {
+                        result.push(ASN1Block::Sequence(soff, vec![]))
+                } else {
+                    match from_der_(body, start_offset + index) {
+                        Ok(items) =>
+                            result.push(ASN1Block::Sequence(soff, items)),
+                        Err(e) =>
+                            return Err(e)
+                    }
                 }
             }
             // SET
