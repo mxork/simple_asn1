@@ -35,6 +35,9 @@ extern crate quickcheck;
 #[cfg(test)]
 extern crate rand;
 
+#[macro_use]
+extern crate serde_derive;
+
 use chrono::{DateTime,TimeZone,Utc};
 pub use num_bigint::{BigInt,BigUint};
 use num_traits::{FromPrimitive,One,ToPrimitive,Zero};
@@ -216,7 +219,7 @@ impl PartialEq for ASN1Block {
 }
 
 /// An ASN.1 OID.
-#[derive(Clone,Debug,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Eq,PartialOrd,Ord,Hash)]
 pub struct OID(pub Vec<BigUint>);
 
 impl OID {
